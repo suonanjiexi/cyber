@@ -1,5 +1,7 @@
 ### 一个轻量级go web框架
-
+> go 1.22+ 
+> 基于"net/http"标准库实现
+> 支持中间件、路由、错误处理等
 ```go
 package main
 
