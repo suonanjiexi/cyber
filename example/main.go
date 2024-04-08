@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/suonanjiexi/cyber"
 	"github.com/suonanjiexi/cyber/example/routers"
+	"github.com/suonanjiexi/cyber/middleware"
 	"log"
 	"net/http"
 )
@@ -12,9 +13,9 @@ import (
 func main() {
 	app := cyber.NewApp(nil)
 	// 使用中间件
-	app.Use(cyber.RecoveryMiddleware)
-	app.Use(cyber.LoggingMiddleware)
-	app.Use(cyber.CorsMiddleware)
+	app.Use(middleware.RecoveryMiddleware)
+	app.Use(middleware.LoggingMiddleware)
+	app.Use(middleware.CorsMiddleware)
 	// 定义路由处理函数
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Hello, World!")

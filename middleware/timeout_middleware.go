@@ -1,4 +1,4 @@
-package cyber
+package middleware
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TimeoutMiddleware(next HandlerFunc) HandlerFunc {
+func TimeoutMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		maxRetries := uint32(3)
 		retry := uint32(0)

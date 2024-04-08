@@ -1,4 +1,4 @@
-package cyber
+package middleware
 
 import (
 	"net/http"
@@ -7,10 +7,10 @@ import (
 )
 
 type CORSConfig struct {
-	AllowOrigin   []string // 允许的来源列表
-	AllowMethods  []string // 允许的请求方法列表
-	AllowHeaders  []string // 允许的请求头部列表
-	MaxAgeSeconds int      // Access-Control-Max-Age 的值，单位为秒
+	AllowOrigin   []string
+	AllowMethods  []string
+	AllowHeaders  []string
+	MaxAgeSeconds int
 }
 
 var defaultCORSConfig = CORSConfig{
@@ -20,7 +20,7 @@ var defaultCORSConfig = CORSConfig{
 	MaxAgeSeconds: 3600,
 }
 
-func CorsMiddleware(next HandlerFunc) HandlerFunc {
+func CorsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		headers := w.Header()
 		headers.Add("Access-Control-Allow-Origin", strings.Join(defaultCORSConfig.AllowOrigin, ","))

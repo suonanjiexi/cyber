@@ -21,7 +21,7 @@ var regexPattern = regexp.MustCompile(`{([^/]+)}`)
 
 type HandlerFunc func(http.ResponseWriter, *http.Request)
 
-type Middleware func(HandlerFunc) HandlerFunc
+type Middleware func(http.HandlerFunc) http.HandlerFunc
 
 type App struct {
 	middlewares []Middleware
@@ -55,13 +55,13 @@ func (app *App) Use(middlewares ...Middleware) {
 	app.middlewares = append(app.middlewares, middlewares...)
 }
 
-func applyMiddlewares(handler HandlerFunc, middlewares []Middleware) HandlerFunc {
+func applyMiddlewares(handler http.HandlerFunc, middlewares []Middleware) http.HandlerFunc {
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		handler = middlewares[i](handler)
 	}
 	return handler
 }
-func (app *App) HandleFunc(pattern string, handler HandlerFunc) {
+func (app *App) HandleFunc(pattern string, handler http.HandlerFunc) {
 	finalHandler := applyMiddlewares(handler, app.middlewares)
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -81,7 +81,7 @@ func (app *App) Group(prefix string) *RouteGroup {
 		app:    app,
 	}
 }
-func (rg *RouteGroup) HandleFunc(pattern string, handler HandlerFunc) {
+func (rg *RouteGroup) HandleFunc(pattern string, handler http.HandlerFunc) {
 	pattern = rg.joinPattern(pattern)
 	rg.app.HandleFunc(pattern, handler)
 }
@@ -95,43 +95,43 @@ func (rg *RouteGroup) joinPattern(pattern string) string {
 	return strings.Join([]string{rg.prefix, pattern}, "")
 }
 
-func (app *App) Get(pattern string, handler HandlerFunc) {
+func (app *App) Get(pattern string, handler http.HandlerFunc) {
 	app.baseHttpHandler(http.MethodGet, pattern, handler)
 }
-func (app *App) Post(pattern string, handler HandlerFunc) {
+func (app *App) Post(pattern string, handler http.HandlerFunc) {
 	app.baseHttpHandler(http.MethodPost, pattern, handler)
 }
-func (app *App) Delete(pattern string, handler HandlerFunc) {
+func (app *App) Delete(pattern string, handler http.HandlerFunc) {
 	app.baseHttpHandler(http.MethodDelete, pattern, handler)
 }
-func (app *App) Put(pattern string, handler HandlerFunc) {
+func (app *App) Put(pattern string, handler http.HandlerFunc) {
 	app.baseHttpHandler(http.MethodPut, pattern, handler)
 }
-func (app *App) Patch(pattern string, handler HandlerFunc) {
+func (app *App) Patch(pattern string, handler http.HandlerFunc) {
 	app.baseHttpHandler(http.MethodPatch, pattern, handler)
 }
 
-func (rg *RouteGroup) Get(pattern string, handler HandlerFunc) {
+func (rg *RouteGroup) Get(pattern string, handler http.HandlerFunc) {
 	rg.baseHttpHandler(http.MethodGet, pattern, handler)
 }
 
-func (rg *RouteGroup) Post(pattern string, handler HandlerFunc) {
+func (rg *RouteGroup) Post(pattern string, handler http.HandlerFunc) {
 	rg.baseHttpHandler(http.MethodPost, pattern, handler)
 }
 
-func (rg *RouteGroup) Delete(pattern string, handler HandlerFunc) {
+func (rg *RouteGroup) Delete(pattern string, handler http.HandlerFunc) {
 	rg.baseHttpHandler(http.MethodDelete, pattern, handler)
 }
 
-func (rg *RouteGroup) Put(pattern string, handler HandlerFunc) {
+func (rg *RouteGroup) Put(pattern string, handler http.HandlerFunc) {
 	rg.baseHttpHandler(http.MethodPut, pattern, handler)
 }
 
-func (rg *RouteGroup) Patch(pattern string, handler HandlerFunc) {
+func (rg *RouteGroup) Patch(pattern string, handler http.HandlerFunc) {
 	rg.baseHttpHandler(http.MethodPatch, pattern, handler)
 }
 
-func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
+func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler http.HandlerFunc) {
 	if !httpMethods[httpMethod] {
 		log.Printf("Unsupported HTTP method: %s", httpMethod)
 		return
@@ -140,7 +140,7 @@ func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler
 	rg.app.HandleFunc(httpMethod+" "+rg.prefix+pattern, handler)
 }
 
-func (app *App) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
+func (app *App) baseHttpHandler(httpMethod string, pattern string, handler http.HandlerFunc) {
 	if !httpMethods[httpMethod] {
 		log.Printf("Unsupported HTTP method: %s", httpMethod)
 		return

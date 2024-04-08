@@ -1,4 +1,4 @@
-package cyber
+package middleware
 
 import (
 	"fmt"
@@ -7,10 +7,8 @@ import (
 	"time"
 )
 
-// LoggingMiddleware 为HTTP请求添加日志记录的中间件
-func LoggingMiddleware(next HandlerFunc) HandlerFunc {
+func LoggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// 使用配置化的路径忽略列表，这里仅示例忽略了 favicon.ico
 		ignorePaths := []string{"/favicon.ico"}
 		requestPath := r.URL.Path
 		isIgnored := false
@@ -35,14 +33,12 @@ func LoggingMiddleware(next HandlerFunc) HandlerFunc {
 	}
 }
 
-// logRequestDuration 记录请求的处理时间
 func logRequestDuration(startTime time.Time, r *http.Request) {
 	duration := time.Since(startTime)
 	durationStr := formatDuration(duration)
 	log.Printf("Duration: %s - Request: %s %s", durationStr, r.Method, r.URL.Path)
 }
 
-// formatDuration 根据持续时间返回格式化的时间字符串
 func formatDuration(duration time.Duration) string {
 	if duration.Minutes() >= 1 {
 		return fmt.Sprintf("%.2f m", duration.Minutes())

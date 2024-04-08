@@ -1,11 +1,11 @@
-package cyber
+package middleware
 
 import (
 	"log"
 	"net/http"
 )
 
-func RecoveryMiddleware(next HandlerFunc) HandlerFunc {
+func RecoveryMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
