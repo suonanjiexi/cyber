@@ -6,8 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync/atomic"
-	"time"
 )
 
 type HandlerFunc func(http.ResponseWriter, *http.Request)
@@ -25,25 +23,31 @@ type RouteGroup struct {
 }
 
 func NewApp(config *AppConfig) *App {
+	if config == nil {
+		config = &AppConfig{
+			ServerPort:   defaultServerPort,
+			ReadTimeout:  defaultReadTimeout,
+			WriteTimeout: defaultWriteTimeout,
+		}
+	}
+	serverConfig := &http.Server{
+		Addr:         fmt.Sprintf(":%s", config.ServerPort),
+		ReadTimeout:  config.ReadTimeout,
+		WriteTimeout: config.WriteTimeout,
+	}
 	return &App{
-		server: &http.Server{
-			Addr:         getValueWithDefault(config.ServerPort, defaultServerPort),
-			ReadTimeout:  getDurationWithDefault(config.ReadTimeout, defaultReadTimeout),
-			WriteTimeout: getDurationWithDefault(config.ReadTimeout, defaultWriteTimeout),
-		},
+		server: serverConfig,
 	}
 }
 
-func (a *App) Use(middleware Middleware) {
-	a.middlewares = append(a.middlewares, middleware)
+func (app *App) Use(middlewares ...Middleware) {
+	app.middlewares = append(app.middlewares, middlewares...)
 }
-
-func (a *App) HandleFunc(pattern string, handler HandlerFunc) {
-	finalHandler := wrapHandler(handler, a.middlewares)
+func (app *App) HandleFunc(pattern string, handler HandlerFunc) {
+	finalHandler := wrapHandler(handler, app.middlewares)
 	http.HandleFunc(pattern, finalHandler)
 	log.Printf("Route registered: %s", pattern)
 }
-
 func wrapHandler(handler HandlerFunc, middlewares []Middleware) HandlerFunc {
 	if len(middlewares) == 0 {
 		return handler
@@ -51,10 +55,10 @@ func wrapHandler(handler HandlerFunc, middlewares []Middleware) HandlerFunc {
 	return wrapHandler(middlewares[0](handler), middlewares[1:])
 }
 
-func (a *App) Group(prefix string) *RouteGroup {
+func (app *App) Group(prefix string) *RouteGroup {
 	return &RouteGroup{
 		prefix: prefix,
-		app:    a,
+		app:    app,
 	}
 }
 func (rg *RouteGroup) HandleFunc(pattern string, handler HandlerFunc) {
@@ -62,116 +66,69 @@ func (rg *RouteGroup) HandleFunc(pattern string, handler HandlerFunc) {
 	rg.app.HandleFunc(pattern, handler)
 }
 func (rg *RouteGroup) joinPattern(pattern string) string {
-	if strings.HasPrefix(pattern, "/") {
-		return strings.Join([]string{rg.prefix, pattern}, "")
+	if !strings.HasPrefix(pattern, "/") {
+		return strings.Join([]string{rg.prefix, "/", pattern}, "")
 	}
-	return strings.Join([]string{rg.prefix, "/", pattern}, "")
+	if rg.prefix != "/" && !strings.HasPrefix(rg.prefix, "/") {
+		rg.prefix = "/" + rg.prefix
+	}
+	return strings.Join([]string{rg.prefix, pattern}, "")
 }
-func (a *App) Run() error {
-	err := a.server.ListenAndServe()
+
+func (app *App) Get(pattern string, handler HandlerFunc) {
+	app.baseHttpHandler(http.MethodGet, pattern, handler)
+}
+func (app *App) Post(pattern string, handler HandlerFunc) {
+	app.baseHttpHandler(http.MethodPost, pattern, handler)
+}
+func (app *App) Delete(pattern string, handler HandlerFunc) {
+	app.baseHttpHandler(http.MethodDelete, pattern, handler)
+}
+func (app *App) Put(pattern string, handler HandlerFunc) {
+	app.baseHttpHandler(http.MethodPut, pattern, handler)
+}
+func (app *App) Patch(pattern string, handler HandlerFunc) {
+	app.baseHttpHandler(http.MethodPatch, pattern, handler)
+}
+
+func (rg *RouteGroup) Get(pattern string, handler HandlerFunc) {
+	rg.baseHttpHandler(http.MethodGet, pattern, handler)
+}
+
+func (rg *RouteGroup) Post(pattern string, handler HandlerFunc) {
+	rg.baseHttpHandler(http.MethodPost, pattern, handler)
+}
+
+func (rg *RouteGroup) Delete(pattern string, handler HandlerFunc) {
+	rg.baseHttpHandler(http.MethodDelete, pattern, handler)
+}
+
+func (rg *RouteGroup) Put(pattern string, handler HandlerFunc) {
+	rg.baseHttpHandler(http.MethodPut, pattern, handler)
+}
+
+func (rg *RouteGroup) Patch(pattern string, handler HandlerFunc) {
+	rg.baseHttpHandler(http.MethodPatch, pattern, handler)
+}
+
+func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
+	rg.app.HandleFunc(httpMethod+" "+pattern, handler)
+}
+
+func (app *App) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
+	app.HandleFunc(httpMethod+" "+pattern, handler)
+}
+func (app *App) Run() error {
+	err := app.server.ListenAndServe()
 	if err != nil {
 		log.Printf("Server failed to start: %v", err)
 	}
 	return err
 }
-func (a *App) Get(pattern string, handler HandlerFunc) {
-	a.baseHttpHandler(http.MethodGet, pattern, handler)
-}
-func (a *App) Post(pattern string, handler HandlerFunc) {
-	a.baseHttpHandler(http.MethodPost, pattern, handler)
-}
-func (a *App) Delete(pattern string, handler HandlerFunc) {
-	a.baseHttpHandler(http.MethodDelete, pattern, handler)
-}
-func (a *App) Put(pattern string, handler HandlerFunc) {
-	a.baseHttpHandler(http.MethodPut, pattern, handler)
-}
-func (a *App) Patch(pattern string, handler HandlerFunc) {
-	a.baseHttpHandler(http.MethodPatch, pattern, handler)
-}
-func (a *App) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
-	a.HandleFunc(httpMethod+" "+pattern, handler)
-}
-
-func (a *App) Shutdown(ctx context.Context) error {
-	return a.server.Shutdown(ctx)
-}
-func SafeInputMiddleware(next HandlerFunc) HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		next(w, r)
+func (app *App) Shutdown(ctx context.Context) error {
+	err := app.server.Shutdown(ctx)
+	if err != nil {
+		log.Printf("Server failed to Shutdown: %v", err)
 	}
-}
-func RecoveryMiddleware(next HandlerFunc) HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				log.Printf("panic: %v", err)
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			}
-		}()
-		next(w, r)
-	}
-}
-func LoggingMiddleware(next HandlerFunc) HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/favicon.ico" {
-			startTime := time.Now()
-			defer func() {
-				duration := time.Since(startTime)
-				var durationStr string
-				switch {
-				case duration.Minutes() >= 1:
-					durationStr = fmt.Sprintf("%.2f m", duration.Minutes())
-				case duration.Seconds() >= 1:
-					durationStr = fmt.Sprintf("%.2f s", duration.Seconds())
-				default:
-					durationStr = fmt.Sprintf("%.2f ms", float64(duration.Nanoseconds())/float64(time.Millisecond))
-				}
-				log.Printf("Duration: %s - Request: %s %s", durationStr, r.Method, r.URL.Path)
-			}()
-		}
-		next(w, r)
-	}
-}
-func TimeoutMiddleware(next HandlerFunc) HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		maxRetries := uint32(3)
-		retry := uint32(0)
-		timeout := 10 * time.Second
-		for retry < maxRetries {
-			ctx, cancel := context.WithTimeout(r.Context(), timeout)
-			defer cancel()
-			r = r.WithContext(ctx)
-			done := make(chan bool)
-			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf("Recovered in handler: %v", r)
-					}
-				}()
-				next(w, r)
-				done <- true
-			}()
-			select {
-			case <-done:
-				return
-			case <-ctx.Done():
-				retry = atomic.AddUint32(&retry, 1)
-				if retry == maxRetries {
-					log.Printf("Request timed out after maximum retries, last error: %v", ctx.Err())
-					http.Error(w, "Request timed out after maximum retries", http.StatusGatewayTimeout)
-					return
-				}
-				log.Printf("Request timed out, retrying (attempt %d)...", retry)
-				timeout = doubleTimeout(timeout)
-			}
-		}
-	}
-}
-func doubleTimeout(timeout time.Duration) time.Duration {
-	const maxTimeout = 60 * time.Second
-	if timeout < maxTimeout {
-		return 2 * timeout
-	}
-	return maxTimeout
+	return err
 }

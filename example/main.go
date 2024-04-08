@@ -1,6 +1,3 @@
-### 一个轻量级go web框架
-
-```go
 package main
 
 import (
@@ -17,6 +14,7 @@ func main() {
 	// 使用中间件
 	app.Use(cyber.RecoveryMiddleware)
 	app.Use(cyber.LoggingMiddleware)
+	app.Use(cyber.TimeoutMiddleware)
 	// 定义路由处理函数
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(w, "Hello, World!")
@@ -33,5 +31,3 @@ func main() {
 		log.Fatalf("Failed to shutdown server: %v", err)
 	}
 }
-
-```
