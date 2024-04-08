@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -112,10 +113,12 @@ func (rg *RouteGroup) Patch(pattern string, handler HandlerFunc) {
 }
 
 func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
-	rg.app.HandleFunc(httpMethod+" "+pattern, handler)
+	rg.app.HandleFunc(httpMethod+" "+rg.prefix+pattern, handler)
 }
 
 func (app *App) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
+	regexPattern := regexp.MustCompile(`{([^/]+)}`)
+	pattern = regexPattern.ReplaceAllString(pattern, `(?P<$1>[^/]+)`)
 	app.HandleFunc(httpMethod+" "+pattern, handler)
 }
 func (app *App) Run() error {
