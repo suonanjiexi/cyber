@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -112,6 +113,32 @@ func RecoveryMiddleware(next HandlerFunc) HandlerFunc {
 	}
 }
 
+// LoggingMiddleware 在请求处理完成后记录日志。
+// 建议根据日志级别和业务需求调整日志记录策略，避免对性能的影响。
+func LoggingMiddleware(next HandlerFunc) HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/favicon.ico" {
+			startTime := time.Now()
+			defer func() {
+				duration := time.Since(startTime)
+				var durationStr string
+				switch {
+				case duration.Minutes() >= 1:
+					durationStr = fmt.Sprintf("%.2f m", duration.Minutes())
+				case duration.Seconds() >= 1:
+					durationStr = fmt.Sprintf("%.2f s", duration.Seconds())
+				default:
+					durationStr = fmt.Sprintf("%.2f ms", float64(duration.Nanoseconds())/float64(time.Millisecond))
+				}
+				log.Printf("Duration: %s - Request: %s %s", durationStr, r.Method, r.URL.Path)
+			}()
+		}
+		next(w, r)
+	}
+}
+
+// TimeoutMiddleware 为请求设置超时。
+// 建议根据具体业务场景评估是否为每个请求设置超时，以及超时时间的设置。
 func TimeoutMiddleware(next HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		maxRetries := uint32(3)
