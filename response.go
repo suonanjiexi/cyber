@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 )
 
 type ErrorResponse struct {
@@ -13,25 +14,37 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-func Success(w http.ResponseWriter, r *http.Request, StatusCode int, data interface{}) {
+var jsonEncoderPool = &sync.Pool{
+	New: func() interface{} {
+		return json.NewEncoder(nil)
+	},
+}
+
+func respondWithJSON(w http.ResponseWriter, r *http.Request, statusCode int, data interface{}) {
+	enc := jsonEncoderPool.Get().(*json.Encoder)
+	defer func() {
+		err := enc.Encode(data)
+		if err != nil {
+			log.Printf("Error JSONResponse: %v", err)
+			return
+		}
+		jsonEncoderPool.Put(enc)
+	}()
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(StatusCode)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("Error JSONResponse: %v", err)
-		http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+	w.WriteHeader(statusCode)
+	if err := enc.Encode(data); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 }
+
+func Success(w http.ResponseWriter, r *http.Request, StatusCode int, data interface{}) {
+	respondWithJSON(w, r, StatusCode, data)
+}
 func Error(w http.ResponseWriter, r *http.Request, StatusCode int, code string, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(StatusCode)
 	response := ErrorResponse{
 		Code:    code,
 		Message: message,
 	}
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Error JSONResponse: %v", err)
-		http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
-		return
-	}
+	respondWithJSON(w, r, StatusCode, response)
 }

@@ -8,14 +8,6 @@ import (
 	"strings"
 )
 
-var httpMethods = map[string]bool{
-	http.MethodGet:    true,
-	http.MethodPost:   true,
-	http.MethodDelete: true,
-	http.MethodPut:    true,
-	http.MethodPatch:  true,
-}
-
 type HandlerFunc func(http.ResponseWriter, *http.Request)
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
@@ -128,8 +120,12 @@ func (rg *RouteGroup) Patch(pattern string, handler http.HandlerFunc) {
 	rg.baseHttpHandler(http.MethodPatch, pattern, handler)
 }
 
+func isValidHTTPMethod(method string) bool {
+	return strings.Contains("GET POST DELETE PUT PATCH", method)
+}
+
 func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler http.HandlerFunc) {
-	if !httpMethods[httpMethod] {
+	if !isValidHTTPMethod(httpMethod) {
 		log.Printf("Unsupported HTTP method: %s", httpMethod)
 		return
 	}
@@ -137,7 +133,7 @@ func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler
 }
 
 func (app *App) baseHttpHandler(httpMethod string, pattern string, handler http.HandlerFunc) {
-	if !httpMethods[httpMethod] {
+	if !isValidHTTPMethod(httpMethod) {
 		log.Printf("Unsupported HTTP method: %s", httpMethod)
 		return
 	}
