@@ -112,9 +112,6 @@ func RecoveryMiddleware(next HandlerFunc) HandlerFunc {
 		next(w, r)
 	}
 }
-
-// LoggingMiddleware 在请求处理完成后记录日志。
-// 建议根据日志级别和业务需求调整日志记录策略，避免对性能的影响。
 func LoggingMiddleware(next HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/favicon.ico" {
@@ -136,17 +133,14 @@ func LoggingMiddleware(next HandlerFunc) HandlerFunc {
 		next(w, r)
 	}
 }
-
-// TimeoutMiddleware 为请求设置超时。
-// 建议根据具体业务场景评估是否为每个请求设置超时，以及超时时间的设置。
 func TimeoutMiddleware(next HandlerFunc) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		maxRetries := uint32(3)
-		retry := uint32(0) // 使用atomic操作，保证线程安全
+		retry := uint32(0)
 		timeout := 10 * time.Second
 		for retry < maxRetries {
 			ctx, cancel := context.WithTimeout(r.Context(), timeout)
-			defer cancel() // 确保在函数结束时调用cancel，避免资源泄露
+			defer cancel()
 			r = r.WithContext(ctx)
 			done := make(chan bool)
 			go func() {
