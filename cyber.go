@@ -1,4 +1,4 @@
-package main
+package cyber
 
 import (
 	"context"
