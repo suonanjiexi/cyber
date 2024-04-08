@@ -25,11 +25,10 @@ func main() {
 	routers.OrderRoutes(app)
 	// 启动服务器
 	if err := app.Run(); err != nil {
-		log.Fatalf("Server error: %v", err)
+		log.Printf("Server error: %v", err)
 	}
-
 	// 关闭服务器
 	if err := app.Shutdown(context.Background()); err != nil {
-		log.Fatalf("Failed to shutdown server: %v", err)
+		log.Printf("Failed to shutdown server: %v", err)
 	}
 }

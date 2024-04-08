@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"regexp"
 	"strings"
 )
 
@@ -17,15 +16,13 @@ var httpMethods = map[string]bool{
 	http.MethodPatch:  true,
 }
 
-var regexPattern = regexp.MustCompile(`{([^/]+)}`)
-
 type HandlerFunc func(http.ResponseWriter, *http.Request)
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
 
 type App struct {
-	middlewares []Middleware
-	server      *http.Server
+	Middlewares []Middleware
+	Server      *http.Server
 }
 
 type RouteGroup struct {
@@ -47,12 +44,12 @@ func NewApp(config *AppConfig) *App {
 		WriteTimeout: config.WriteTimeout,
 	}
 	return &App{
-		server: serverConfig,
+		Server: serverConfig,
 	}
 }
 
 func (app *App) Use(middlewares ...Middleware) {
-	app.middlewares = append(app.middlewares, middlewares...)
+	app.Middlewares = append(app.Middlewares, middlewares...)
 }
 
 func applyMiddlewares(handler http.HandlerFunc, middlewares []Middleware) http.HandlerFunc {
@@ -62,7 +59,7 @@ func applyMiddlewares(handler http.HandlerFunc, middlewares []Middleware) http.H
 	return handler
 }
 func (app *App) HandleFunc(pattern string, handler http.HandlerFunc) {
-	finalHandler := applyMiddlewares(handler, app.middlewares)
+	finalHandler := applyMiddlewares(handler, app.Middlewares)
 	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -136,7 +133,6 @@ func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler
 		log.Printf("Unsupported HTTP method: %s", httpMethod)
 		return
 	}
-	pattern = regexPattern.ReplaceAllString(pattern, `(?P<$1>[^/]+)`)
 	rg.app.HandleFunc(httpMethod+" "+rg.prefix+pattern, handler)
 }
 
@@ -145,18 +141,19 @@ func (app *App) baseHttpHandler(httpMethod string, pattern string, handler http.
 		log.Printf("Unsupported HTTP method: %s", httpMethod)
 		return
 	}
-	pattern = regexPattern.ReplaceAllString(pattern, `(?P<$1>[^/]+)`)
 	app.HandleFunc(httpMethod+" "+pattern, handler)
 }
+
+// Run 添加启动成功的日志
 func (app *App) Run() error {
-	err := app.server.ListenAndServe()
+	err := app.Server.ListenAndServe()
 	if err != nil {
 		log.Printf("Server failed to start: %v", err)
 	}
 	return err
 }
 func (app *App) Shutdown(ctx context.Context) error {
-	err := app.server.Shutdown(ctx)
+	err := app.Server.Shutdown(ctx)
 	if err != nil {
 		log.Printf("Server failed to Shutdown: %v", err)
 	}
