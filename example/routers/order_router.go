@@ -10,6 +10,7 @@ func OrderRoutes(app *cyber.App) {
 	//定义路由组
 	group := app.Group("/order")
 	group.HandleFunc("/detail", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println(w, "API Posts")
+		fmt.Println("API Order")
+		cyber.Success(w, r, http.StatusOK, "API Order")
 	})
 }

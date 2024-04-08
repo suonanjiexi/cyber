@@ -14,10 +14,11 @@ func main() {
 	// 使用中间件
 	app.Use(cyber.RecoveryMiddleware)
 	app.Use(cyber.LoggingMiddleware)
-	app.Use(cyber.TimeoutMiddleware)
+	app.Use(cyber.CorsMiddleware)
 	// 定义路由处理函数
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println(w, "Hello, World!")
+		fmt.Println("Hello, World!")
+		cyber.Success(w, r, http.StatusOK, "Hello, World!")
 	})
 	routers.UserRoutes(app)
 	routers.OrderRoutes(app)
