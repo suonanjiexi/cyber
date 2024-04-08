@@ -9,6 +9,16 @@ import (
 	"strings"
 )
 
+var httpMethods = map[string]bool{
+	http.MethodGet:    true,
+	http.MethodPost:   true,
+	http.MethodDelete: true,
+	http.MethodPut:    true,
+	http.MethodPatch:  true,
+}
+
+var regexPattern = regexp.MustCompile(`{([^/]+)}`)
+
 type HandlerFunc func(http.ResponseWriter, *http.Request)
 
 type Middleware func(HandlerFunc) HandlerFunc
@@ -44,16 +54,25 @@ func NewApp(config *AppConfig) *App {
 func (app *App) Use(middlewares ...Middleware) {
 	app.middlewares = append(app.middlewares, middlewares...)
 }
-func (app *App) HandleFunc(pattern string, handler HandlerFunc) {
-	finalHandler := wrapHandler(handler, app.middlewares)
-	http.HandleFunc(pattern, finalHandler)
-	log.Printf("Route registered: %s", pattern)
-}
-func wrapHandler(handler HandlerFunc, middlewares []Middleware) HandlerFunc {
-	if len(middlewares) == 0 {
-		return handler
+
+func applyMiddlewares(handler HandlerFunc, middlewares []Middleware) HandlerFunc {
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		handler = middlewares[i](handler)
 	}
-	return wrapHandler(middlewares[0](handler), middlewares[1:])
+	return handler
+}
+func (app *App) HandleFunc(pattern string, handler HandlerFunc) {
+	finalHandler := applyMiddlewares(handler, app.middlewares)
+	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("Panic occurred in handler: %v", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+		finalHandler(w, r)
+	})
+	log.Printf("Route registered: %s", pattern)
 }
 
 func (app *App) Group(prefix string) *RouteGroup {
@@ -113,11 +132,19 @@ func (rg *RouteGroup) Patch(pattern string, handler HandlerFunc) {
 }
 
 func (rg *RouteGroup) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
+	if !httpMethods[httpMethod] {
+		log.Printf("Unsupported HTTP method: %s", httpMethod)
+		return
+	}
+	pattern = regexPattern.ReplaceAllString(pattern, `(?P<$1>[^/]+)`)
 	rg.app.HandleFunc(httpMethod+" "+rg.prefix+pattern, handler)
 }
 
 func (app *App) baseHttpHandler(httpMethod string, pattern string, handler HandlerFunc) {
-	regexPattern := regexp.MustCompile(`{([^/]+)}`)
+	if !httpMethods[httpMethod] {
+		log.Printf("Unsupported HTTP method: %s", httpMethod)
+		return
+	}
 	pattern = regexPattern.ReplaceAllString(pattern, `(?P<$1>[^/]+)`)
 	app.HandleFunc(httpMethod+" "+pattern, handler)
 }
