@@ -1,4 +1,5 @@
 ### 一个轻量级go web框架
+[详细文档](https://suonanjiexi.github.io/cyber/)
 * go 1.22+ 
 * 基于"net/http"标准库实现
 * 支持中间件、路由分组、错误处理等
