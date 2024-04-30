@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func LoggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func Logger(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ignorePaths := []string{"/favicon.ico"}
 		requestPath := r.URL.Path

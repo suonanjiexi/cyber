@@ -21,9 +21,9 @@ import (
 func main() {
 	app := cyber.NewApp(nil)
 	// 使用中间件
-	app.Use(middleware.RecoveryMiddleware)
-	app.Use(middleware.LoggingMiddleware)
-	app.Use(middleware.CorsMiddleware)
+	app.Use(middleware.Recovery)
+	app.Use(middleware.Logger)
+	app.Use(middleware.Cors)
 	// 定义路由处理函数
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Hello, World!")

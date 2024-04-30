@@ -20,7 +20,7 @@ var defaultCORSConfig = CORSConfig{
 	MaxAgeSeconds: 3600,
 }
 
-func CorsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func Cors(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		headers := w.Header()
 		headers.Add("Access-Control-Allow-Origin", strings.Join(defaultCORSConfig.AllowOrigin, ","))
