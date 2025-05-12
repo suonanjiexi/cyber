@@ -5,31 +5,31 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/suonanjiexi/cyber"
 )
 
-func Logger(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ignorePaths := []string{"/favicon.ico"}
-		requestPath := r.URL.Path
-		isIgnored := false
-		for _, path := range ignorePaths {
-			if requestPath == path {
-				isIgnored = true
-				break
-			}
-		}
-		// 如果请求不是被忽略的路径，则进行日志记录
-		if !isIgnored {
-			startTime := time.Now()
-			defer logRequestDuration(startTime, r)
-		}
-		// 捕获并处理next函数可能引发的panic
-		defer func() {
-			if err := recover(); err != nil {
-				log.Printf("Recovered from panic: %v", err)
-			}
-		}()
-		next(w, r)
+// Logger 日志中间件
+func Logger(next cyber.HandlerFunc) cyber.HandlerFunc {
+	return func(c *cyber.Context) {
+		// 请求开始时间
+		startTime := time.Now()
+
+		// 处理请求
+		next(c)
+
+		// 计算响应时间
+		latency := time.Since(startTime)
+
+		// 记录请求信息
+		log.Printf(
+			"[%s] %s %s %d %s",
+			c.Request.Method,
+			c.Request.URL.Path,
+			c.Request.RemoteAddr,
+			c.StatusCode,
+			latency,
+		)
 	}
 }
 

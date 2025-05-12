@@ -3,16 +3,22 @@ package middleware
 import (
 	"log"
 	"net/http"
+	"runtime/debug"
+
+	"github.com/suonanjiexi/cyber"
 )
 
-func Recovery(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+// Recovery 异常恢复中间件
+func Recovery(next cyber.HandlerFunc) cyber.HandlerFunc {
+	return func(c *cyber.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("panic: %v", err)
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				// 记录堆栈信息
+				log.Printf("Panic recovered: %v\nStack trace: %s", err, debug.Stack())
+				// 响应500错误
+				c.Error(http.StatusInternalServerError, "INTERNAL_ERROR", "Internal Server Error")
 			}
 		}()
-		next(w, r)
+		next(c)
 	}
 }
