@@ -10,7 +10,7 @@ import (
 	"github.com/suonanjiexi/cyber"
 )
 
-// 超时配置
+// TimeoutConfig 超时配置
 type TimeoutConfig struct {
 	Timeout    time.Duration // 超时时间
 	MaxRetries uint32        // 最大重试次数
